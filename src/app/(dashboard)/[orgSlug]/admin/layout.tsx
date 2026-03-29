@@ -13,6 +13,10 @@ import {
   Filter,
   Mail,
   Bell,
+  HandHeart,
+  Baby,
+  Folder,
+  GraduationCap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -47,6 +51,16 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Contacts", href: (s) => `/${s}/admin/contacts`, icon: Users },
       { label: "Segments", href: (s) => `/${s}/admin/contacts/segments`, icon: Filter },
+    ],
+  },
+  {
+    label: "Programs",
+    items: [
+      { label: "Sponsorships", href: (s) => `/${s}/admin/sponsorships`, icon: HandHeart },
+      { label: "Children", href: (s) => `/${s}/admin/children`, icon: Baby },
+      { label: "Programs", href: (s) => `/${s}/admin/programs`, icon: Folder },
+      { label: "Schools", href: (s) => `/${s}/admin/schools`, icon: GraduationCap },
+      { label: "Letters", href: (s) => `/${s}/admin/letters`, icon: Mail },
     ],
   },
   {

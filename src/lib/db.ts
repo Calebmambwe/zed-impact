@@ -39,6 +39,18 @@ const TENANT_MODELS = new Set([
   "buildingProject",
   "budget",
   "impactReport",
+  "program",
+  "school",
+  "letter",
+  "sponsorMessage",
+  "childUpdate",
+  "childDocument",
+  "childHealthRecord",
+  "academicTerm",
+  "studentProgress",
+  "teacherProfile",
+  "sponsorWaitlist",
+  "childAuditLog",
 ]);
 
 /** Operations that should have organizationId injected into WHERE. */

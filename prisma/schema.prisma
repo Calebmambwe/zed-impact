@@ -129,6 +129,55 @@ enum CampaignStatus {
   ARCHIVED
 }
 
+// ── Sponsorship domain enums ──────────────────────────────────────────────────
+
+enum SponsorshipStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum SchoolType {
+  PRIMARY
+  SECONDARY
+  TERTIARY
+  VOCATIONAL
+}
+
+enum ChildUpdateType {
+  GENERAL
+  ACADEMIC
+  HEALTH
+  PHOTO
+  LETTER
+}
+
+enum ChildDocumentType {
+  BIRTH_CERTIFICATE
+  PHOTO
+  SCHOOL_REPORT
+  MEDICAL
+  OTHER
+}
+
+enum LetterDirection {
+  SPONSOR_TO_CHILD
+  CHILD_TO_SPONSOR
+}
+
+enum LetterStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  DELIVERED
+}
+
+enum ProgressStatus {
+  SUBMITTED
+  REVIEWED
+}
+
 // ══════════════════════════════════════════════════════════════════
 // TENANCY & USERS
 // ══════════════════════════════════════════════════════════════════
@@ -188,6 +237,18 @@ model Organization {
   buildingProjects BuildingProject[]
   budgets         Budget[]
   impactReports   ImpactReport[]
+  programs        Program[]
+  schools         School[]
+  letters         Letter[]
+  sponsorMessages SponsorMessage[]
+  childUpdates    ChildUpdate[]
+  childDocuments  ChildDocument[]
+  healthRecords   ChildHealthRecord[]
+  academicTerms   AcademicTerm[]
+  studentProgress StudentProgress[]
+  teacherProfiles TeacherProfile[]
+  sponsorWaitlist SponsorWaitlist[]
+  childAuditLogs  ChildAuditLog[]
 }
 
 model User {
@@ -201,10 +262,12 @@ model User {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  orgMemberships OrgMember[]
-  auditLogs      AuditLog[]
-  notes          Note[]
-  notifications  Notification[]
+  orgMemberships  OrgMember[]
+  auditLogs       AuditLog[]
+  notes           Note[]
+  notifications   Notification[]
+  sponsorships    Sponsorship[]
+  teacherProfiles TeacherProfile[]
 }
 
 model OrgMember {
@@ -419,18 +482,279 @@ model Event {
   @@index([organizationId])
 }
 
-model Child {
-  id             String   @id @default(cuid())
+// ── Sponsorship domain models ─────────────────────────────────────────────────
+
+model Program {
+  id             String    @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  goalAmount     Float?
+  childCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  children     Child[]
+
   @@index([organizationId])
 }
 
+model School {
+  id             String     @id @default(cuid())
+  organizationId String
+  name           String
+  type           SchoolType @default(PRIMARY)
+  location       String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  children         Child[]
+  teacherProfiles  TeacherProfile[]
+
+  @@index([organizationId])
+}
+
+model Child {
+  id              String    @id @default(cuid())
+  organizationId  String
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          String?
+  bio             String?
+  profileImageUrl String?
+  programId       String?
+  schoolId        String?
+  isAvailable     Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  program         Program?           @relation(fields: [programId], references: [id], onDelete: SetNull)
+  school          School?            @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sponsorships    Sponsorship[]
+  childUpdates    ChildUpdate[]
+  childDocuments  ChildDocument[]
+  healthRecords   ChildHealthRecord[]
+  progress        StudentProgress[]
+  waitlistEntries SponsorWaitlist[]
+  auditLogs       ChildAuditLog[]
+
+  @@index([organizationId])
+  @@index([programId])
+  @@index([schoolId])
+  @@index([isAvailable])
+}
+
 model Sponsorship {
+  id                   String            @id @default(cuid())
+  organizationId       String
+  userId               String
+  childId              String
+  status               SponsorshipStatus @default(ACTIVE)
+  stripeSubscriptionId String?
+  monthlyAmount        Float
+  startDate            DateTime          @default(now())
+  endDate              DateTime?
+  pausedAt             DateTime?
+  churnScore           Int?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id])
+  child        Child           @relation(fields: [childId], references: [id])
+  letters      Letter[]
+  messages     SponsorMessage[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([childId])
+  @@index([status])
+}
+
+model Letter {
+  id             String          @id @default(cuid())
+  organizationId String
+  sponsorshipId  String
+  direction      LetterDirection
+  status         LetterStatus    @default(DRAFT)
+  subject        String
+  body           String
+  attachmentUrl  String?
+  moderatedBy    String?
+  moderatedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sponsorship  Sponsorship  @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([sponsorshipId])
+  @@index([status])
+}
+
+model SponsorMessage {
   id             String   @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sponsorshipId  String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sponsorship  Sponsorship  @relation(fields: [sponsorshipId], references: [id], onDelete: Cascade)
+
   @@index([organizationId])
+  @@index([sponsorshipId])
+}
+
+model ChildUpdate {
+  id             String          @id @default(cuid())
+  organizationId String
+  childId        String
+  type           ChildUpdateType @default(GENERAL)
+  title          String
+  body           String
+  imageUrl       String?
+  updatedBy      String
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([childId])
+}
+
+model ChildDocument {
+  id             String            @id @default(cuid())
+  organizationId String
+  childId        String
+  type           ChildDocumentType @default(OTHER)
+  name           String
+  url            String
+  uploadedBy     String
+  uploadedAt     DateTime          @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([childId])
+}
+
+model ChildHealthRecord {
+  id             String    @id @default(cuid())
+  organizationId String
+  childId        String
+  recordedAt     DateTime  @default(now())
+  weight         Float?
+  height         Float?
+  notes          String?
+  createdBy      String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([childId])
+}
+
+model AcademicTerm {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime  @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  progress     StudentProgress[]
+
+  @@index([organizationId])
+}
+
+model StudentProgress {
+  id               String         @id @default(cuid())
+  organizationId   String
+  childId          String
+  termId           String
+  teacherProfileId String
+  subjects         Json
+  attendance       Int?
+  grade            String?
+  notes            String?
+  status           ProgressStatus @default(SUBMITTED)
+  submittedAt      DateTime       @default(now())
+  reviewedAt       DateTime?
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child          Child          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  term           AcademicTerm   @relation(fields: [termId], references: [id])
+  teacherProfile TeacherProfile @relation(fields: [teacherProfileId], references: [id])
+
+  @@index([organizationId])
+  @@index([childId])
+  @@index([termId])
+  @@index([teacherProfileId])
+}
+
+model TeacherProfile {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  schoolId       String?
+  subjects       String[]
+  bio            String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id])
+  school       School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  progress     StudentProgress[]
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([schoolId])
+}
+
+model SponsorWaitlist {
+  id             String   @id @default(cuid())
+  organizationId String
+  childId        String
+  userId         String?
+  email          String
+  position       Int
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([childId])
+}
+
+model ChildAuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  childId        String
+  userId         String
+  action         String
+  details        Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  child        Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([childId])
+  @@index([userId])
 }
 
 model Tag {
