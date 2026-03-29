@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { LayoutDashboard, Settings, Building2 } from "lucide-react";
+import { LayoutDashboard, Settings, Building2, Heart, Target, FileText } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: (s: string) => `/${s}/admin`, icon: LayoutDashboard },
+  { label: "Donations", href: (s: string) => `/${s}/admin/donations`, icon: Heart },
+  { label: "Campaigns", href: (s: string) => `/${s}/admin/campaigns`, icon: Target },
+  { label: "Forms", href: (s: string) => `/${s}/admin/forms`, icon: FileText },
   { label: "Settings", href: (s: string) => `/${s}/admin/settings`, icon: Settings },
 ];
 

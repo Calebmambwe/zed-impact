@@ -34,6 +34,63 @@ enum Role {
   SUPER_ADMIN
 }
 
+// Donation & Payment enums
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum DonationType {
+  ONE_TIME
+  RECURRING
+  IN_KIND
+  MATCHING
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CHECK
+  CASH
+  OTHER
+}
+
+enum PaymentGateway {
+  STRIPE
+  DPO_GROUP
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum CampaignType {
+  DONATION
+  EVENT
+  RAFFLE
+  AUCTION
+  P2P
+  MEMBERSHIP
+  EMERGENCY
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
 // ══════════════════════════════════════════════════════════════════
 // TENANCY & USERS
 // ══════════════════════════════════════════════════════════════════
@@ -79,6 +136,9 @@ model Organization {
   p2pFundraisers  P2PFundraiser[]
   raffleBundles   RaffleBundle[]
   auctionItems    AuctionItem[]
+  donorTributes   DonorTribute[]
+  giftMatches     GiftMatch[]
+  fundraisingPages FundraisingPage[]
   staffTasks      StaffTask[]
   buildingProjects BuildingProject[]
   budgets         Budget[]
@@ -187,24 +247,89 @@ model Contact {
 }
 
 model Donation {
-  id             String   @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                     String          @id @default(cuid())
+  organizationId         String
+  userId                 String?
+  contactId              String?         // FK to Contact — fully linked in M3
+  campaignId             String?
+  formId                 String?
+  amount                 Float
+  currency               String          @default("USD")
+  status                 DonationStatus  @default(PENDING)
+  type                   DonationType    @default(ONE_TIME)
+  paymentMethod          PaymentMethod?
+  gateway                PaymentGateway?
+  stripeSessionId        String?         @unique
+  stripeSubscriptionId   String?
+  isRecurring            Boolean         @default(false)
+  frequency              String?
+  donorName              String
+  donorEmail             String
+  message                String?
+  isAnonymous            Boolean         @default(false)
+  tributeId              String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  form           DonationForm? @relation(fields: [formId], references: [id], onDelete: SetNull)
+  tribute        DonorTribute? @relation("DonationTribute", fields: [tributeId], references: [id], onDelete: SetNull)
+  payments       Payment[]
+  giftMatches    GiftMatch[]
+
   @@index([organizationId])
+  @@index([campaignId])
+  @@index([formId])
+  @@index([donorEmail])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Campaign {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String         @unique
+  description    String?
+  type           CampaignType   @default(DONATION)
+  status         CampaignStatus @default(DRAFT)
+  goalAmount     Float?
+  raisedAmount   Float          @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  imageUrl       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  donations       Donation[]
+  donationForms   DonationForm[]
+  fundraisingPages FundraisingPage[]
+
   @@index([organizationId])
+  @@index([slug])
+  @@index([status])
 }
 
 model DonationForm {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String    @unique
+  fields         Json      // Array<{ id, type, label, required, options? }>
+  isPublished    Boolean   @default(false)
+  campaignId     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  donations    Donation[]
+
   @@index([organizationId])
+  @@index([slug])
+  @@index([campaignId])
 }
 
 model Event {
@@ -257,11 +382,88 @@ model EmailCampaign {
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                    String         @id @default(cuid())
+  organizationId        String
+  donationId            String
+  amount                Float
+  currency              String         @default("USD")
+  gateway               PaymentGateway
+  status                PaymentStatus  @default(PENDING)
+  gatewayTransactionId  String?        @unique
+  gatewayReferenceId    String?
+  metadata              Json?
+  processedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  donation     Donation     @relation(fields: [donationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([donationId])
+  @@index([gatewayTransactionId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DONATION SUPPLEMENTARY MODELS (M2)
+// ══════════════════════════════════════════════════════════════════
+
+model DonorTribute {
+  id                String    @id @default(cuid())
+  organizationId    String
+  tributeType       String    // "in_honor" | "in_memory"
+  tributeeName      String
+  notificationEmail String?
+  message           String?
+  createdAt         DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  donations    Donation[]    @relation("DonationTribute")
+
   @@index([organizationId])
 }
+
+model GiftMatch {
+  id             String    @id @default(cuid())
+  organizationId String
+  donationId     String
+  matchedBy      String
+  matchAmount    Float
+  matchedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  donation     Donation     @relation(fields: [donationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([donationId])
+}
+
+model FundraisingPage {
+  id             String    @id @default(cuid())
+  organizationId String
+  campaignId     String
+  userId         String
+  slug           String    @unique
+  title          String
+  description    String?
+  goalAmount     Float?
+  raisedAmount   Float     @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([slug])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FUTURE MILESTONE STUBS (unchanged)
+// ══════════════════════════════════════════════════════════════════
 
 model Product {
   id             String   @id @default(cuid())
