@@ -1,0 +1,341 @@
+// ZedImpact — Prisma Schema
+// Multi-tenant nonprofit management platform
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ENUMS
+// ══════════════════════════════════════════════════════════════════
+
+enum PlanTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MANAGER
+  STAFF
+  VIEWER
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TENANCY & USERS
+// ══════════════════════════════════════════════════════════════════
+
+model Organization {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  description      String?
+  logoUrl          String?
+  website          String?
+  planTier         PlanTier      @default(FREE)
+  stripeAccountId  String?
+  stripeCustomerId String?
+  clerkOrgId       String?       @unique
+  customDomain     String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  members       OrgMember[]
+  apiKeys       OrgApiKey[]
+  customDomains CustomDomain[]
+  featureFlags  FeatureFlag[]
+  auditLogs     AuditLog[]
+
+  // Stub relations for future milestones
+  contacts        Contact[]
+  donations       Donation[]
+  campaigns       Campaign[]
+  donationForms   DonationForm[]
+  events          Event[]
+  children        Child[]
+  sponsorships    Sponsorship[]
+  tags            Tag[]
+  notes           Note[]
+  segments        Segment[]
+  emailCampaigns  EmailCampaign[]
+  payments        Payment[]
+  products        Product[]
+  orders          Order[]
+  membershipTiers MembershipTier[]
+  memberships     Membership[]
+  p2pFundraisers  P2PFundraiser[]
+  raffleBundles   RaffleBundle[]
+  auctionItems    AuctionItem[]
+  staffTasks      StaffTask[]
+  buildingProjects BuildingProject[]
+  budgets         Budget[]
+  impactReports   ImpactReport[]
+}
+
+model User {
+  id               String     @id @default(cuid())
+  clerkId          String     @unique
+  email            String     @unique
+  name             String?
+  avatarUrl        String?
+  role             Role       @default(USER)
+  stripeCustomerId String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  orgMemberships OrgMember[]
+  auditLogs      AuditLog[]
+}
+
+model OrgMember {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole   @default(STAFF)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model OrgApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  keyHash        String    @unique
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model CustomDomain {
+  id             String    @id @default(cuid())
+  organizationId String
+  domain         String    @unique
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  resource       String
+  resourceId     String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STUB MODELS — Future milestones extend these
+// Each has the minimum fields required for the tenant middleware.
+// ══════════════════════════════════════════════════════════════════
+
+model Contact {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Donation {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Campaign {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model DonationForm {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Event {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Child {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Sponsorship {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Tag {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Note {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Segment {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model EmailCampaign {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model MembershipTier {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model P2PFundraiser {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model RaffleBundle {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model AuctionItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model StaffTask {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model BuildingProject {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model Budget {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
+
+model ImpactReport {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId])
+}
