@@ -20,6 +20,9 @@ import {
   Calendar,
   ShoppingBag,
   CreditCard,
+  BarChart3,
+  Flag,
+  UserCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -57,6 +60,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Contacts", href: (s) => `/${s}/admin/contacts`, icon: Users },
       { label: "Segments", href: (s) => `/${s}/admin/contacts/segments`, icon: Filter },
+      { label: "Volunteers", href: (s) => `/${s}/admin/volunteers`, icon: UserCheck },
+      { label: "Users", href: (s) => `/${s}/admin/users`, icon: Users },
     ],
   },
   {
@@ -77,8 +82,15 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Analytics",
+    items: [
+      { label: "Reports", href: (s) => `/${s}/admin/reports`, icon: BarChart3 },
+    ],
+  },
+  {
     label: "Organization",
     items: [
+      { label: "Feature Flags", href: (s) => `/${s}/admin/flags`, icon: Flag },
       { label: "Settings", href: (s) => `/${s}/admin/settings`, icon: Settings },
     ],
   },
