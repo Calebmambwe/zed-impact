@@ -17,6 +17,9 @@ import {
   Baby,
   Folder,
   GraduationCap,
+  Calendar,
+  ShoppingBag,
+  CreditCard,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -44,6 +47,9 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Donations", href: (s) => `/${s}/admin/donations`, icon: Heart },
       { label: "Campaigns", href: (s) => `/${s}/admin/campaigns`, icon: Target },
       { label: "Forms", href: (s) => `/${s}/admin/forms`, icon: FileText },
+      { label: "Events", href: (s) => `/${s}/admin/events`, icon: Calendar },
+      { label: "Store", href: (s) => `/${s}/admin/store`, icon: ShoppingBag },
+      { label: "Memberships", href: (s) => `/${s}/admin/memberships`, icon: CreditCard },
     ],
   },
   {
