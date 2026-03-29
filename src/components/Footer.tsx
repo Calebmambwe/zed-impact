@@ -1,21 +1,28 @@
 import Link from "next/link";
-import { Leaf } from "lucide-react";
+import { Leaf, Mail, ExternalLink } from "lucide-react";
 
 const FOOTER_LINKS = {
   Product: [
     { label: "Features", href: "/#features" },
     { label: "Pricing", href: "/#pricing" },
-    { label: "Changelog", href: "/changelog" },
+    { label: "Blog", href: "/blog" },
   ],
   Company: [
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ],
   Legal: [
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
   ],
 };
+
+const SOCIAL_LINKS = [
+  { label: "Twitter / X", href: "https://twitter.com/zedimpact", icon: ExternalLink },
+  { label: "LinkedIn", href: "https://linkedin.com/company/zedimpact", icon: ExternalLink },
+  { label: "GitHub", href: "https://github.com/zedimpact", icon: ExternalLink },
+  { label: "Email", href: "mailto:hello@zedimpact.com", icon: Mail },
+];
 
 /**
  * Public-facing site footer for ZedImpact.
@@ -36,6 +43,21 @@ export default function Footer() {
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
               Modern tools for nonprofits that want to make a bigger impact.
             </p>
+            {/* Social links */}
+            <div className="mt-4 flex items-center gap-3">
+              {SOCIAL_LINKS.map(({ label, href, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  aria-label={label}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Icon className="size-4" />
+                </a>
+              ))}
+            </div>
           </div>
 
           {/* Link columns */}

@@ -4,19 +4,21 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserButton, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { UserButton, SignInButton } from "@clerk/nextjs";
 import { useAuth } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "Features", href: "/#features" },
-  { label: "Pricing", href: "/#pricing" },
   { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
+  { label: "Blog", href: "/blog" },
 ];
 
 /**
  * Public-facing site header for ZedImpact.
- * Shows navigation, auth state, and a mobile menu.
+ * Shows navigation, auth state, theme toggle, and a mobile menu.
  */
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,8 +48,9 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Auth actions */}
+        {/* Auth actions + theme toggle */}
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           {!isSignedIn ? (
             <>
               <Button variant="ghost" size="sm" render={<Link href="/sign-in" />}>
@@ -68,13 +71,16 @@ export default function Header() {
         </div>
 
         {/* Mobile menu toggle */}
-        <button
-          className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        >
-          {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
+        <div className="flex md:hidden items-center gap-2">
+          <ThemeToggle />
+          <button
+            className="p-2 rounded-md text-muted-foreground hover:text-foreground"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          >
+            {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}

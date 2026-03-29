@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -19,18 +20,63 @@ const DASHBOARD_PATTERNS = [
   "/dashboard",
 ];
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://zedimpact.com";
+
 export const metadata: Metadata = {
   title: {
-    default: "ZedImpact | Nonprofit Management Platform",
+    default: "ZedImpact — Nonprofit Management Platform",
     template: "%s | ZedImpact",
   },
   description:
-    "ZedImpact empowers nonprofits with modern tools for donations, events, contacts, and impact reporting.",
+    "ZedImpact empowers nonprofits with modern tools for donations, events, contacts, sponsorships, and impact reporting. Built for organizations making a difference.",
+  keywords: [
+    "nonprofit management",
+    "donation platform",
+    "fundraising software",
+    "nonprofit CRM",
+    "charity tools",
+    "event management",
+    "donor management",
+  ],
+  authors: [{ name: "ZedImpact" }],
+  creator: "ZedImpact",
   openGraph: {
     type: "website",
     locale: "en_US",
+    url: APP_URL,
     siteName: "ZedImpact",
+    title: "ZedImpact — Nonprofit Management Platform",
+    description:
+      "Modern tools for nonprofits to manage donations, contacts, events, and impact reporting.",
+    images: [
+      {
+        url: `${APP_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: "ZedImpact — Nonprofit Management Platform",
+      },
+    ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "ZedImpact — Nonprofit Management Platform",
+    description: "Modern tools for nonprofits to manage donations, contacts, events, and impact.",
+    images: [`${APP_URL}/og-image.png`],
+  },
+  metadataBase: new URL(APP_URL),
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "ZedImpact",
+  url: APP_URL,
+  logo: `${APP_URL}/logo.png`,
+  description: "Nonprofit management platform for donations, CRM, events, and impact reporting.",
+  sameAs: [
+    "https://twitter.com/zedimpact",
+    "https://linkedin.com/company/zedimpact",
+  ],
 };
 
 export default async function RootLayout({
@@ -53,13 +99,21 @@ export default async function RootLayout({
       className={cn("font-sans", geist.variable)}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+      </head>
       <body className="antialiased">
-        <ClerkProvider>
-          {!isDashboard && <Header />}
-          <main className={isDashboard ? undefined : "pt-20"}>{children}</main>
-          {!isDashboard && <Footer />}
-          <Toaster position="bottom-right" richColors closeButton />
-        </ClerkProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
+          <ClerkProvider>
+            {!isDashboard && <Header />}
+            <main className={isDashboard ? undefined : "pt-20"}>{children}</main>
+            {!isDashboard && <Footer />}
+            <Toaster position="bottom-right" richColors closeButton />
+          </ClerkProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
