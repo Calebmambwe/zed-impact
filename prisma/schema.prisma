@@ -14,6 +14,44 @@ generator client {
 // ENUMS
 // ══════════════════════════════════════════════════════════════════
 
+enum ContactType {
+  DONOR
+  VOLUNTEER
+  SPONSOR
+  STAFF
+  BOARD
+  OTHER
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+enum EmailSendStatus {
+  QUEUED
+  SENT
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
 enum PlanTier {
   FREE
   PRO
@@ -127,8 +165,15 @@ model Organization {
   tags            Tag[]
   notes           Note[]
   segments        Segment[]
-  emailCampaigns  EmailCampaign[]
-  payments        Payment[]
+  emailCampaigns    EmailCampaign[]
+  emailSends        EmailSend[]
+  emailLogs         EmailLog[]
+  emailPreferences  EmailPreference[]
+  subscribers       Subscriber[]
+  notifications     Notification[]
+  milestones        MilestoneNotification[]
+  contactActivities ContactActivity[]
+  payments          Payment[]
   products        Product[]
   orders          Order[]
   membershipTiers MembershipTier[]
@@ -158,6 +203,8 @@ model User {
 
   orgMemberships OrgMember[]
   auditLogs      AuditLog[]
+  notes          Note[]
+  notifications  Notification[]
 }
 
 model OrgMember {
@@ -240,10 +287,42 @@ model AuditLog {
 // ══════════════════════════════════════════════════════════════════
 
 model Contact {
-  id             String   @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  organizationId  String
+  userId          String?
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  type            ContactType    @default(DONOR)
+  status          ContactStatus  @default(ACTIVE)
+  address         String?
+  city            String?
+  country         String?
+  notes           String?
+  lifetimeValue   Float          @default(0)
+  lastDonationAt  DateTime?
+  customFields    Json?
+  householdId     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  household        Contact?          @relation("HouseholdMembers", fields: [householdId], references: [id])
+  householdMembers Contact[]         @relation("HouseholdMembers")
+  contactTags      ContactTag[]
+  contactNotes     Note[]
+  activity         ContactActivity[]
+  emailPreference  EmailPreference?
+  emailSends       EmailSend[]
+  milestones       MilestoneNotification[]
+  donations        Donation[]
+
   @@index([organizationId])
+  @@index([email])
+  @@index([type])
+  @@index([status])
+  @@index([householdId])
 }
 
 model Donation {
@@ -275,6 +354,7 @@ model Donation {
   campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   form           DonationForm? @relation(fields: [formId], references: [id], onDelete: SetNull)
   tribute        DonorTribute? @relation("DonationTribute", fields: [tributeId], references: [id], onDelete: SetNull)
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   payments       Payment[]
   giftMatches    GiftMatch[]
 
@@ -354,31 +434,219 @@ model Sponsorship {
 }
 
 model Tag {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  color          String      @default("#6b7280")
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactTags  ContactTag[]
+
+  @@unique([organizationId, name])
   @@index([organizationId])
+}
+
+model ContactTag {
+  id        String   @id @default(cuid())
+  contactId String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId])
+  @@index([contactId])
+  @@index([tagId])
 }
 
 model Note {
   id             String   @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId      String
+  content        String
+  authorId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   @@index([organizationId])
+  @@index([contactId])
+}
+
+model ContactActivity {
+  id             String   @id @default(cuid())
+  organizationId String
+  contactId      String
+  type           String
+  description    String
+  metadata       Json?
+  actorId        String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([createdAt])
 }
 
 model Segment {
   id             String   @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  filters        Json
+  contactCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailCampaigns EmailCampaign[]
+
+  @@index([organizationId])
+}
+
+model EmailPreference {
+  id               String    @id @default(cuid())
+  contactId        String    @unique
+  organizationId   String
+  unsubscribed     Boolean   @default(false)
+  unsubscribedAt   DateTime?
+  bounced          Boolean   @default(false)
+  updatedAt        DateTime  @updatedAt
+
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@index([organizationId])
 }
 
 model EmailCampaign {
-  id             String   @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id               String              @id @default(cuid())
+  organizationId   String
+  name             String
+  subject          String
+  previewText      String?
+  blocks           Json
+  segmentId        String?
+  status           EmailCampaignStatus @default(DRAFT)
+  scheduledAt      DateTime?
+  sentAt           DateTime?
+  totalRecipients  Int                 @default(0)
+  totalSent        Int                 @default(0)
+  totalOpened      Int                 @default(0)
+  totalClicked     Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  segment      Segment?     @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  emailSends   EmailSend[]
+  emailLogs    EmailLog[]
+
   @@index([organizationId])
+  @@index([status])
+  @@index([segmentId])
+}
+
+model EmailSend {
+  id             String          @id @default(cuid())
+  organizationId String
+  campaignId     String
+  contactId      String
+  resendId       String?
+  status         EmailSendStatus @default(QUEUED)
+  sentAt         DateTime?
+  openedAt       DateTime?
+  createdAt      DateTime        @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([contactId])
+}
+
+model EmailLog {
+  id             String    @id @default(cuid())
+  organizationId String
+  campaignId     String?
+  contactId      String?
+  toEmail        String
+  subject        String
+  template       String?
+  status         String
+  resendId       String?
+  error          String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     EmailCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([campaignId])
+}
+
+model Subscriber {
+  id               String           @id @default(cuid())
+  organizationId   String
+  email            String
+  firstName        String?
+  lastName         String?
+  status           SubscriberStatus @default(ACTIVE)
+  unsubscribeToken String           @unique @default(cuid())
+  subscribedAt     DateTime         @default(now())
+  unsubscribedAt   DateTime?
+  createdAt        DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  message        String
+  metadata       Json?
+  read           Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model MilestoneNotification {
+  id             String    @id @default(cuid())
+  organizationId String
+  contactId      String
+  milestone      String
+  achievedAt     DateTime
+  notifiedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, milestone])
+  @@index([organizationId])
+  @@index([contactId])
 }
 
 model Payment {
