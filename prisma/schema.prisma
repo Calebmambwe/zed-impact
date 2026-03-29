@@ -129,6 +129,37 @@ enum CampaignStatus {
   ARCHIVED
 }
 
+// ── Events, Store & Membership enums ─────────────────────────────────────────
+
+enum EventType {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum MembershipInterval {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum MembershipStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
 // ── Sponsorship domain enums ──────────────────────────────────────────────────
 
 enum SponsorshipStatus {
@@ -209,6 +240,7 @@ model Organization {
   campaigns       Campaign[]
   donationForms   DonationForm[]
   events          Event[]
+  eventRegistrations EventRegistration[]
   children        Child[]
   sponsorships    Sponsorship[]
   tags            Tag[]
@@ -449,6 +481,7 @@ model Campaign {
   donations       Donation[]
   donationForms   DonationForm[]
   fundraisingPages FundraisingPage[]
+  events          Event[]
 
   @@index([organizationId])
   @@index([slug])
@@ -476,10 +509,75 @@ model DonationForm {
 }
 
 model Event {
+  id             String    @id @default(cuid())
+  organizationId String
+  title          String
+  slug           String    @unique
+  description    String?
+  type           EventType @default(IN_PERSON)
+  location       String?
+  virtualUrl     String?
+  imageUrl       String?
+  startDate      DateTime
+  endDate        DateTime?
+  isPublished    Boolean   @default(false)
+  maxCapacity    Int?
+  campaignId     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign          Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  ticketTypes       TicketType[]
+  registrations     EventRegistration[]
+
+  @@index([organizationId])
+  @@index([slug])
+  @@index([startDate])
+  @@index([campaignId])
+}
+
+model TicketType {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  price       Float    @default(0)
+  quantity    Int?
+  sold        Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations EventRegistration[]
+
+  @@index([eventId])
+}
+
+model EventRegistration {
   id             String   @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  eventId        String
+  ticketTypeId   String?
+  attendeeName   String
+  attendeeEmail  String
+  quantity       Int      @default(1)
+  totalPaid      Float    @default(0)
+  qrCode         String   @unique @default(cuid())
+  checkedIn      Boolean  @default(false)
+  checkedInAt    DateTime?
+  stripeSessionId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType   TicketType?  @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+
   @@index([organizationId])
+  @@index([eventId])
+  @@index([attendeeEmail])
+  @@index([qrCode])
 }
 
 // ── Sponsorship domain models ─────────────────────────────────────────────────
@@ -1060,29 +1158,119 @@ model FundraisingPage {
 model Product {
   id             String   @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String   @unique
+  description    String?
+  imageUrl       String?
+  price          Float
+  currency       String   @default("USD")
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variants     ProductVariant[]
+  orderItems   OrderItem[]
+
   @@index([organizationId])
+  @@index([slug])
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  sku       String?
+  price     Float?
+  inventory Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
 }
 
 model Order {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  buyerName      String
+  buyerEmail     String
+  totalAmount    Float
+  currency       String      @default("USD")
+  status         OrderStatus @default(PENDING)
+  stripeSessionId String?    @unique
+  shippingAddress Json?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        OrderItem[]
+
   @@index([organizationId])
+  @@index([buyerEmail])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  variantId String?
+  quantity  Int      @default(1)
+  unitPrice Float
+  createdAt DateTime @default(now())
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model MembershipTier {
-  id             String   @id @default(cuid())
+  id             String             @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  price          Float
+  interval       MembershipInterval @default(MONTHLY)
+  benefits       Json?
+  isPublished    Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+
   @@index([organizationId])
 }
 
 model Membership {
-  id             String   @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                   String           @id @default(cuid())
+  organizationId       String
+  tierId               String
+  memberName           String
+  memberEmail          String
+  status               MembershipStatus @default(ACTIVE)
+  stripeSubscriptionId String?          @unique
+  startDate            DateTime         @default(now())
+  endDate              DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tier         MembershipTier @relation(fields: [tierId], references: [id])
+
   @@index([organizationId])
+  @@index([tierId])
+  @@index([memberEmail])
+  @@index([status])
 }
 
 model P2PFundraiser {
