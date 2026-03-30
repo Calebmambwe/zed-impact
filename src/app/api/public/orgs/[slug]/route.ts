@@ -39,8 +39,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: org, error: null });
   } catch (err) {
-    console.error("[/api/public/orgs] DB error:", err instanceof Error ? err.message : String(err));
-    if (err instanceof Error) console.error("[/api/public/orgs] Stack:", err.stack?.split('\n').slice(0,3).join(' | '));
+    console.error("[/api/public/orgs] DB error:", err);
     return NextResponse.json(
       {
         success: false,

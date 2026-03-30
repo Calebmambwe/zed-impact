@@ -11,6 +11,8 @@ async function main() {
   if (existingOrg) {
     console.log("Cleaning up existing seed data...");
     await prisma.donation.deleteMany({ where: { organizationId: existingOrg.id } });
+    await prisma.eventRegistration.deleteMany({ where: { organizationId: existingOrg.id } });
+    await prisma.event.deleteMany({ where: { organizationId: existingOrg.id } });
     await prisma.campaign.deleteMany({ where: { organizationId: existingOrg.id } });
     await prisma.contact.deleteMany({ where: { organizationId: existingOrg.id } });
     await prisma.orgMember.deleteMany({ where: { organizationId: existingOrg.id } });
@@ -187,6 +189,64 @@ async function main() {
     }
   }
   console.log(`Created ${donations.length} donations across 6 months`);
+
+  // ── Events ────────────────────────────────────────────────────────────────
+  const futureBase = new Date(now.getFullYear(), now.getMonth(), 1);
+  const eventsData = [
+    {
+      title: "Annual Gala Dinner 2026",
+      slug: "annual-gala-dinner-2026",
+      description: "Our flagship fundraising event of the year. Join us for an evening of celebration, storytelling, and community.",
+      type: "IN_PERSON" as const,
+      location: "Grand Ballroom, City Conference Center",
+      startDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 1, 15, 18, 0),
+      endDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 1, 15, 22, 0),
+      isPublished: true,
+      maxCapacity: 200,
+      campaignId: campaign1.id,
+    },
+    {
+      title: "Education Sponsor Webinar",
+      slug: "education-sponsor-webinar-2026",
+      description: "Meet the students you are sponsoring. Hear their stories and see the impact of your generosity.",
+      type: "VIRTUAL" as const,
+      virtualUrl: "https://zoom.us/j/demo",
+      startDate: new Date(futureBase.getFullYear(), futureBase.getMonth(), 20, 14, 0),
+      endDate: new Date(futureBase.getFullYear(), futureBase.getMonth(), 20, 15, 30),
+      isPublished: true,
+      maxCapacity: 100,
+      campaignId: campaign2.id,
+    },
+    {
+      title: "Community Volunteer Day",
+      slug: "community-volunteer-day-2026",
+      description: "Roll up your sleeves and make a direct impact. No experience needed — just bring your enthusiasm.",
+      type: "IN_PERSON" as const,
+      location: "Riverside Community Park",
+      startDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 2, 8, 9, 0),
+      endDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 2, 8, 16, 0),
+      isPublished: true,
+      maxCapacity: 50,
+    },
+    {
+      title: "Year-End Donor Appreciation",
+      slug: "year-end-donor-appreciation-2026",
+      description: "A hybrid event to thank our top donors and share the impact report for the year.",
+      type: "HYBRID" as const,
+      location: "ZedImpact HQ",
+      virtualUrl: "https://meet.google.com/demo",
+      startDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 3, 10, 17, 0),
+      endDate: new Date(futureBase.getFullYear(), futureBase.getMonth() + 3, 10, 19, 0),
+      isPublished: false,
+    },
+  ];
+
+  for (const e of eventsData) {
+    await prisma.event.create({
+      data: { organizationId: org.id, ...e },
+    });
+  }
+  console.log(`Created ${eventsData.length} events`);
 
   // Summary
   const totalRaised = donations.reduce((sum, d) => sum + d.amount, 0);
