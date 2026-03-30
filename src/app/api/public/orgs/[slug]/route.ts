@@ -12,29 +12,42 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  const org = await prisma.organization.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      description: true,
-      logoUrl: true,
-      website: true,
-      planTier: true,
-    },
-  });
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        logoUrl: true,
+        website: true,
+        planTier: true,
+      },
+    });
 
-  if (!org) {
+    if (!org) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: { code: "NOT_FOUND", message: "Organization not found" },
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: org, error: null });
+  } catch (err) {
+    console.error("[/api/public/orgs] DB error:", err instanceof Error ? err.message : String(err));
+    if (err instanceof Error) console.error("[/api/public/orgs] Stack:", err.stack?.split('\n').slice(0,3).join(' | '));
     return NextResponse.json(
       {
         success: false,
         data: null,
-        error: { code: "NOT_FOUND", message: "Organization not found" },
+        error: { code: "INTERNAL_ERROR", message: "Failed to load organization" },
       },
-      { status: 404 }
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ success: true, data: org, error: null });
 }
