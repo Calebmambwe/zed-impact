@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Loader2, Download, Sparkles } from "lucide-react";
-import { prisma } from "@/lib/db";
 
 const REPORT_TYPES = [
   {
